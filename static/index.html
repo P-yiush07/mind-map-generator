@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Mind Map Generator</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        #mynetwork {
+            width: 100%;
+            height: 600px;
+            border: 1px solid lightgray;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF Mind Map Generator</h1>
+    <input type="file" id="pdfFile" accept=".pdf">
+    <button id="generateButton">Generate Mind Map</button>
+    <div id="mynetwork"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('generateButton').addEventListener('click', uploadPDF);
+        });
+
+        async function uploadPDF() {
+            const fileInput = document.getElementById('pdfFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const mindMapData = await response.json();
+                renderMindMap(mindMapData);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while processing the PDF');
+            }
+        }
+
+        function renderMindMap(data) {
+            const nodes = [];
+            const edges = [];
+
+            function processNode(node, parentId = null) {
+                const id = nodes.length;
+                nodes.push({ id: id, label: node.name });
+                if (parentId !== null) {
+                    edges.push({ from: parentId, to: id });
+                }
+                if (node.children) {
+                    for (const child of node.children) {
+                        processNode(child, id);
+                    }
+                }
+            }
+
+            processNode(data);
+
+            const container = document.getElementById('mynetwork');
+            const visData = {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            };
+            const options = {
+                layout: {
+                    hierarchical: {
+                        direction: "UD",
+                        sortMethod: "directed"
+                    }
+                },
+                physics: false
+            };
+            new vis.Network(container, visData, options);
+        }
+    </script>
+</body>
+</html>
